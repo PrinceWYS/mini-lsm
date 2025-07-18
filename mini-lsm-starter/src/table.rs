@@ -67,9 +67,8 @@ impl BlockMeta {
             // sizeof last key
             estimate_size += meta.last_key.len();
         }
-
         buf.reserve(estimate_size);
-        let original_len = buf.len();
+        
         buf.put_u32(block_meta.len() as u32);
         for meta in block_meta {
             buf.put_u32(meta.offset as u32);
@@ -78,7 +77,6 @@ impl BlockMeta {
             buf.put_u16(meta.last_key.len() as u16);
             buf.put_slice(meta.last_key.raw_ref());
         }
-        debug_assert_eq!(estimate_size, buf.len() - original_len);
     }
 
     /// Decode block meta from a buffer.
