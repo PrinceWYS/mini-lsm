@@ -440,9 +440,11 @@ impl LsmStorageInner {
         }
         let memtable_iter = MergeIterator::create(memtable_iters);
 
+        
+
         Ok(FusedIterator::new(LsmIterator::new(
             memtable_iter,
-            // map_bound(_upper),
+            map_bound(_upper),
         )?))
     }
 }

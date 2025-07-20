@@ -68,7 +68,7 @@ impl BlockMeta {
             estimate_size += meta.last_key.len();
         }
         buf.reserve(estimate_size);
-        
+
         buf.put_u32(block_meta.len() as u32);
         for meta in block_meta {
             buf.put_u32(meta.offset as u32);

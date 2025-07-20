@@ -15,19 +15,22 @@
 #![allow(unused_variables)] // TODO(you): remove this lint after implementing this mod
 #![allow(dead_code)] // TODO(you): remove this lint after implementing this mod
 
+use std::ops::Bound;
+
 use anyhow::{Ok, Result, bail};
+use bytes::Bytes;
 
 use crate::{
-    iterators::{StorageIterator, merge_iterator::MergeIterator},
-    mem_table::MemTableIterator,
+    iterators::{merge_iterator::MergeIterator, two_merge_iterator::TwoMergeIterator, StorageIterator},
+    mem_table::MemTableIterator, table::SsTableIterator,
 };
 
 /// Represents the internal type for an LSM iterator. This type will be changed across the course for multiple times.
-type LsmIteratorInner = MergeIterator<MemTableIterator>;
+type LsmIteratorInner = TwoMergeIterator<MergeIterator<MemTableIterator>, MergeIterator<SsTableIterator>>;
 
 pub struct LsmIterator {
     inner: LsmIteratorInner,
-    // upper_bound: Bound<Bytes>,
+    end_bound: Bound<Bytes>,
     is_valid: bool,
 }
 
@@ -55,11 +58,11 @@ impl LsmIterator {
         Ok(())
     }
 
-    pub(crate) fn new(iter: LsmIteratorInner) -> Result<Self> {
+    pub(crate) fn new(iter: LsmIteratorInner, end_bound: Bound<Bytes>) -> Result<Self> {
         let mut iter = Self {
             is_valid: iter.is_valid(),
             inner: iter,
-            // upper_bound: _upper_bound,
+            end_bound,
         };
 
         iter.move_to_non_delete()?;
