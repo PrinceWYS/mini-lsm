@@ -21,12 +21,16 @@ use anyhow::{Ok, Result, bail};
 use bytes::Bytes;
 
 use crate::{
-    iterators::{merge_iterator::MergeIterator, two_merge_iterator::TwoMergeIterator, StorageIterator},
-    mem_table::MemTableIterator, table::SsTableIterator,
+    iterators::{
+        StorageIterator, merge_iterator::MergeIterator, two_merge_iterator::TwoMergeIterator,
+    },
+    mem_table::MemTableIterator,
+    table::SsTableIterator,
 };
 
 /// Represents the internal type for an LSM iterator. This type will be changed across the course for multiple times.
-type LsmIteratorInner = TwoMergeIterator<MergeIterator<MemTableIterator>, MergeIterator<SsTableIterator>>;
+type LsmIteratorInner =
+    TwoMergeIterator<MergeIterator<MemTableIterator>, MergeIterator<SsTableIterator>>;
 
 pub struct LsmIterator {
     inner: LsmIteratorInner,
@@ -42,11 +46,11 @@ impl LsmIterator {
             self.is_valid = false;
             return Ok(());
         }
-        // match self.upper_bound.as_ref() {
-        //     Bound::Unbounded => {}
-        //     Bound::Included(key) => self.is_valid = self.inner.key().raw_ref() <= key.as_ref(),
-        //     Bound::Excluded(key) => self.is_valid = self.inner.key().raw_ref() < key.as_ref(),
-        // }
+        match self.end_bound.as_ref() {
+            Bound::Unbounded => {}
+            Bound::Included(key) => self.is_valid = self.inner.key().raw_ref() <= key.as_ref(),
+            Bound::Excluded(key) => self.is_valid = self.inner.key().raw_ref() < key.as_ref(),
+        }
 
         Ok(())
     }
