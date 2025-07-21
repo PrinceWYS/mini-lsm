@@ -132,7 +132,11 @@ impl LsmStorageInner {
     }
 
     fn trigger_compaction(&self) -> Result<()> {
-        unimplemented!()
+        let snapshot = self.state.read().clone();
+
+        
+
+        Ok(()) 
     }
 
     pub(crate) fn spawn_compaction_thread(
