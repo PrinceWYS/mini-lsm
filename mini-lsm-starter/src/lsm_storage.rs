@@ -438,14 +438,22 @@ impl LsmStorageInner {
 
         {
             let snapshot = self.state.read();
-            flush_memtable = snapshot.imm_memtables.last().expect("no memtable to flush").clone();
+            flush_memtable = snapshot
+                .imm_memtables
+                .last()
+                .expect("no memtable to flush")
+                .clone();
         }
 
         let mut builder = SsTableBuilder::new(self.options.block_size);
         flush_memtable.flush(&mut builder)?;
 
         let sstable_id = flush_memtable.id();
-        let sstable = Arc::new(builder.build(sstable_id, Some(self.block_cache.clone()), self.path_of_sst(sstable_id))?);
+        let sstable = Arc::new(builder.build(
+            sstable_id,
+            Some(self.block_cache.clone()),
+            self.path_of_sst(sstable_id),
+        )?);
 
         // add flushed l0 table to the list
         {
