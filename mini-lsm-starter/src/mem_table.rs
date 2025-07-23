@@ -22,7 +22,6 @@ use std::sync::atomic::AtomicUsize;
 
 use anyhow::{Ok, Result};
 use bytes::Bytes;
-use clap::builder;
 use crossbeam_skiplist::SkipMap;
 use crossbeam_skiplist::map::Entry;
 use ouroboros::self_referencing;

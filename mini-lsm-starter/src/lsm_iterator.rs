@@ -47,9 +47,9 @@ impl LsmIterator {
             return Ok(());
         }
         match self.end_bound.as_ref() {
-            Bound::Unbounded => {}
             Bound::Included(key) => self.is_valid = self.inner.key().raw_ref() <= key.as_ref(),
             Bound::Excluded(key) => self.is_valid = self.inner.key().raw_ref() < key.as_ref(),
+            Bound::Unbounded => {}
         }
 
         Ok(())
@@ -96,6 +96,10 @@ impl StorageIterator for LsmIterator {
         self.next_inner()?;
         self.move_to_non_delete()?;
         Ok(())
+    }
+
+    fn num_active_iterators(&self) -> usize {
+        self.inner.num_active_iterators()
     }
 }
 
@@ -157,5 +161,9 @@ impl<I: StorageIterator> StorageIterator for FusedIterator<I> {
         }
 
         Ok(())
+    }
+
+    fn num_active_iterators(&self) -> usize {
+        self.iter.num_active_iterators()
     }
 }

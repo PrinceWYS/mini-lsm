@@ -173,7 +173,24 @@ impl Drop for MiniLsm {
 
 impl MiniLsm {
     pub fn close(&self) -> Result<()> {
-        unimplemented!()
+        let mut flush_thread = self.flush_thread.lock();
+        if let Some(flush_thread) = flush_thread.take() {
+            flush_thread
+                .join()
+                .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+        };
+
+        let snapshot = &self.inner.state.read().clone();
+        if !snapshot.memtable.is_empty() {
+            self.inner
+                .freeze_memtable(Arc::new(MemTable::create(self.inner.next_sst_id())))?;
+        }
+
+        while !snapshot.imm_memtables.is_empty() {
+            self.inner.force_flush_next_imm_memtable()?;
+        }
+
+        Ok(())
     }
 
     /// Start the storage engine by either loading an existing directory or creating a new one if the directory does
@@ -300,6 +317,10 @@ impl LsmStorageInner {
         compaction_filters.push(compaction_filter);
     }
 
+    fn key_within(user_key: &[u8], table_begin: KeySlice, table_end: KeySlice) -> bool {
+        table_begin.raw_ref() <= user_key && user_key <= table_end.raw_ref()
+    }
+
     /// Get a key from the storage. In day 7, this can be further optimized by using a bloom filter.
     pub fn get(&self, _key: &[u8]) -> Result<Option<Bytes>> {
         // unimplemented!()
@@ -324,12 +345,19 @@ impl LsmStorageInner {
         }
 
         let mut l0_iters = Vec::with_capacity(state.l0_sstables.len());
+
         for table_id in state.l0_sstables.iter() {
             let table = state.sstables[table_id].clone();
-            l0_iters.push(Box::new(SsTableIterator::create_and_seek_to_key(
-                table,
-                KeySlice::from_slice(_key),
-            )?));
+            if Self::key_within(
+                _key,
+                table.first_key().as_key_slice(),
+                table.last_key().as_key_slice(),
+            ) {
+                l0_iters.push(Box::new(SsTableIterator::create_and_seek_to_key(
+                    table,
+                    KeySlice::from_slice(_key),
+                )?));
+            }
         }
         let l0_iter = MergeIterator::create(l0_iters);
         if l0_iter.is_valid() && l0_iter.key().raw_ref() == _key && !l0_iter.value().is_empty() {
@@ -435,7 +463,6 @@ impl LsmStorageInner {
         let state_lock = self.state_lock.lock();
 
         let flush_memtable;
-
         {
             let snapshot = self.state.read();
             flush_memtable = snapshot
@@ -481,7 +508,7 @@ impl LsmStorageInner {
         table_begin: KeySlice,
         table_end: KeySlice,
     ) -> bool {
-        match begin {
+        match end {
             Bound::Excluded(key) if key <= table_begin.raw_ref() => {
                 return false;
             }
@@ -490,7 +517,7 @@ impl LsmStorageInner {
             }
             _ => {}
         }
-        match end {
+        match begin {
             Bound::Included(key) if key > table_end.raw_ref() => {
                 return false;
             }
