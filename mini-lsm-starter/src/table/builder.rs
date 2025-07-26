@@ -26,7 +26,7 @@ use crate::{
     block::BlockBuilder,
     key::{KeyBytes, KeySlice},
     lsm_storage::BlockCache,
-    table::{bloom::Bloom, FileObject},
+    table::{FileObject, bloom::Bloom},
 };
 
 /// Builds an SSTable from key-value pairs.
@@ -37,7 +37,7 @@ pub struct SsTableBuilder {
     data: Vec<u8>,
     pub(crate) meta: Vec<BlockMeta>,
     block_size: usize,
-    key_hashes: Vec<u32>
+    key_hashes: Vec<u32>,
 }
 
 impl SsTableBuilder {
@@ -110,8 +110,11 @@ impl SsTableBuilder {
         let meta_offset = buf.len();
         BlockMeta::encode_block_meta(&self.meta, &mut buf);
         buf.put_u32(meta_offset as u32);
-        
-        let bloom = Bloom::build_from_key_hashes(&self.key_hashes, Bloom::bloom_bits_per_key(self.key_hashes.len(), 0.01));
+
+        let bloom = Bloom::build_from_key_hashes(
+            &self.key_hashes,
+            Bloom::bloom_bits_per_key(self.key_hashes.len(), 0.01),
+        );
         let bloom_offset = buf.len();
         bloom.encode(&mut buf);
         buf.put_u32(bloom_offset as u32);

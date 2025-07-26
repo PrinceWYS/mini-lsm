@@ -23,6 +23,7 @@ use std::sync::atomic::AtomicUsize;
 
 use anyhow::{Ok, Result};
 use bytes::Bytes;
+use farmhash::fingerprint32;
 use parking_lot::{Mutex, MutexGuard, RwLock};
 
 use crate::block::Block;
@@ -353,6 +354,11 @@ impl LsmStorageInner {
                 table.first_key().as_key_slice(),
                 table.last_key().as_key_slice(),
             ) {
+                if let Some(bloom) = &table.as_ref().bloom
+                    && !bloom.may_contain(fingerprint32(_key))
+                {
+                    continue;
+                }
                 l0_iters.push(Box::new(SsTableIterator::create_and_seek_to_key(
                     table,
                     KeySlice::from_slice(_key),
