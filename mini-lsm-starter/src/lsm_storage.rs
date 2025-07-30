@@ -607,7 +607,20 @@ impl LsmStorageInner {
         for table_id in snapshot.levels[0].1.iter() {
             l1_sst.push(snapshot.sstables[table_id].clone());
         }
-        let l1_iter = SstConcatIterator::create_and_seek_to_first(l1_sst)?;
+        let l1_iter = match _lower {
+            Bound::Included(key) => {
+                SstConcatIterator::create_and_seek_to_key(l1_sst, KeySlice::from_slice(key))?
+            }
+            Bound::Excluded(key) => {
+                let mut iter =
+                    SstConcatIterator::create_and_seek_to_key(l1_sst, KeySlice::from_slice(key))?;
+                if iter.is_valid() && iter.key().raw_ref() == key {
+                    iter.next()?;
+                }
+                iter
+            }
+            Bound::Unbounded => SstConcatIterator::create_and_seek_to_first(l1_sst)?,
+        };
 
         let iter = TwoMergeIterator::create(memtable_iter, l0_table_iter)?;
         let iter = TwoMergeIterator::create(iter, l1_iter)?;
