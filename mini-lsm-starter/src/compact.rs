@@ -36,6 +36,7 @@ use crate::iterators::merge_iterator::MergeIterator;
 use crate::iterators::two_merge_iterator::TwoMergeIterator;
 use crate::key::KeySlice;
 use crate::lsm_storage::{LsmStorageInner, LsmStorageState};
+use crate::manifest::ManifestRecord;
 use crate::table::{SsTable, SsTableBuilder, SsTableIterator};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -331,6 +332,13 @@ impl LsmStorageInner {
                 let result = snapshot.sstables.remove(files);
                 std::fs::remove_file(self.path_of_sst(*files))?;
             }
+
+            self.manifest
+                .as_ref()
+                .unwrap()
+                .add_record(&state_lock, ManifestRecord::Compaction(task, output))?;
+
+            self.sync_dir()?;
 
             let mut state = self.state.write();
             *state = Arc::new(snapshot);
