@@ -198,10 +198,14 @@ impl LsmStorageInner {
                 let iter = MergeIterator::create(iters);
                 self.compact_generate_sst_from_iter(iter, _task.compact_to_bottom_level())
             }
-            CompactionTask::Leveled(task) => {
-                unimplemented!()
-            }
-            CompactionTask::Simple(SimpleLeveledCompactionTask {
+            CompactionTask::Leveled(LeveledCompactionTask {
+                upper_level,
+                upper_level_sst_ids,
+                lower_level,
+                lower_level_sst_ids,
+                ..
+            })
+            | CompactionTask::Simple(SimpleLeveledCompactionTask {
                 upper_level,
                 upper_level_sst_ids,
                 lower_level,
