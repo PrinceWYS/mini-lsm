@@ -35,20 +35,25 @@ impl Wal {
         Ok(Self {
             file: Arc::new(Mutex::new(BufWriter::new(
                 OpenOptions::new()
-                .read(true)
-                .create_new(true)
-                .write(true)
-                .open(_path)
-                .context("failed to open log file for wal")?)))
+                    .read(true)
+                    .create_new(true)
+                    .write(true)
+                    .open(_path)
+                    .context("failed to open log file for wal")?,
+            ))),
         })
     }
 
     pub fn recover(_path: impl AsRef<Path>, _skiplist: &SkipMap<Bytes, Bytes>) -> Result<Self> {
         let path = _path.as_ref();
-        let mut file = OpenOptions::new().read(true).append(true).open(path).context("failed to open log file for wal")?;
+        let mut file = OpenOptions::new()
+            .read(true)
+            .append(true)
+            .open(path)
+            .context("failed to open log file for wal")?;
         let mut buf = Vec::new();
 
-        file.read_to_end(&mut buf);
+        file.read_to_end(&mut buf)?;
         let mut rbuf = buf.as_slice();
         while rbuf.has_remaining() {
             let key_len = rbuf.get_u16() as usize;
@@ -59,9 +64,9 @@ impl Wal {
             rbuf.advance(value_len);
             _skiplist.insert(key, value);
         }
-        
+
         Ok(Self {
-            file: Arc::new(Mutex::new(BufWriter::new(file)))
+            file: Arc::new(Mutex::new(BufWriter::new(file))),
         })
     }
 
