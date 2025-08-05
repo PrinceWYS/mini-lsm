@@ -63,7 +63,9 @@ impl SsTableBuilder {
             first_key: KeyBytes::from_bytes(self.first_key.clone().into()),
             last_key: KeyBytes::from_bytes(self.last_key.clone().into()),
         });
+        let checksum = crc32fast::hash(&encoded_builder);
         self.data.extend(encoded_builder);
+        self.data.put_u32(checksum);
     }
 
     /// Adds a key-value pair to SSTable.

@@ -69,6 +69,7 @@ impl BlockMeta {
         }
         buf.reserve(estimate_size);
 
+        let original_len = buf.len();
         buf.put_u32(block_meta.len() as u32);
         for meta in block_meta {
             buf.put_u32(meta.offset as u32);
@@ -77,12 +78,14 @@ impl BlockMeta {
             buf.put_u16(meta.last_key.len() as u16);
             buf.put_slice(meta.last_key.raw_ref());
         }
+        buf.put_u32(crc32fast::hash(&buf[original_len + 4..]));
     }
 
     /// Decode block meta from a buffer.
-    pub fn decode_block_meta(mut buf: impl Buf) -> Vec<BlockMeta> {
+    pub fn decode_block_meta(mut buf: &[u8]) -> Vec<BlockMeta> {
         let mut block_metas = Vec::new();
         let num = buf.get_u32() as usize;
+        let checksum = crc32fast::hash(&buf[..buf.remaining() - 4]);
         for _ in 0..num {
             let offset = buf.get_u32() as usize;
             let first_key_len = buf.get_u16() as usize;
@@ -95,6 +98,7 @@ impl BlockMeta {
                 last_key,
             });
         }
+        assert_eq!(checksum, buf.get_u32(), "checksum error");
         block_metas
     }
 }
@@ -211,8 +215,17 @@ impl SsTable {
             .block_meta
             .get(block_idx + 1)
             .map_or(self.block_meta_offset, |x| x.offset);
-        let block_len = offset_end - offset;
-        let block_data = self.file.read(offset as u64, block_len as u64)?;
+        let block_len = offset_end - offset - 4;
+        let block_data_with_checksum = self
+            .file
+            .read(offset as u64, (offset_end - offset) as u64)?;
+        let block_data = &block_data_with_checksum[..block_len];
+        let checksum = (&block_data_with_checksum[block_len..]).get_u32();
+        assert_eq!(
+            checksum,
+            crc32fast::hash(block_data),
+            "block checksum error"
+        );
         Ok(Arc::new(Block::decode(&block_data[..block_len])))
     }
 
